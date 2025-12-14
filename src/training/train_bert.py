@@ -17,9 +17,9 @@ from torch.utils.data import Dataset, DataLoader
 from transformers import (
     DistilBertTokenizer,
     DistilBertForSequenceClassification,
-    AdamW,
     get_linear_schedule_with_warmup
 )
+from torch.optim import AdamW
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, precision_recall_fscore_support, confusion_matrix
 import json
@@ -29,16 +29,16 @@ from tqdm import tqdm
 # Configuration
 class Config:
     # Paths
-    DATA_PATH = "data/raw/ticket_listings_dataset.csv"
+    DATA_PATH = "data/raw/ticket_listings_dataset_augmented.csv"  # Use augmented dataset
     MODEL_SAVE_DIR = "models/bert"
     CHECKPOINT_DIR = "models/checkpoints"
     
     # Model parameters
     MODEL_NAME = "distilbert-base-uncased"
     MAX_LENGTH = 256  # Maximum token length for descriptions
-    BATCH_SIZE = 16   # Optimal for RTX 3070 (8GB VRAM)
-    NUM_EPOCHS = 10   # Small dataset, more epochs needed
-    LEARNING_RATE = 2e-5
+    NUM_EPOCHS = 20      # Was 10
+    LEARNING_RATE = 5e-6  # Was 2e-5 (much lower)
+    BATCH_SIZE = 8 
     WARMUP_STEPS = 100
     
     # Training settings
@@ -97,22 +97,21 @@ def load_and_prepare_data(config):
     df = pd.read_csv(config.DATA_PATH)
     
     print(f"Total samples: {len(df)}")
-    print(f"Label distribution:\n{df['label'].value_counts()}")
-    
+    print(f"Label distribution:\n{df['is_scam'].value_counts()}")    
     # Create text features by combining multiple fields
     df['text'] = (
-        df['event_name'].fillna('') + ' ' +
-        df['artist'].fillna('') + ' ' +
-        df['venue'].fillna('') + ' ' +
-        df['description'].fillna('') + ' ' +
-        'Price: £' + df['price'].astype(str) + ' ' +
-        'Platform: ' + df['platform'].fillna('') + ' ' +
-        'Red flags: ' + df['red_flags'].fillna('none')
+    df['event'].fillna('') + ' ' +
+    df['artist_performer'].fillna('') + ' ' +
+    df['venue'].fillna('') + ' ' +
+    df['description'].fillna('') + ' ' +
+    'Price: £' + df['price_gbp'].astype(str) + ' ' +
+    'Platform: ' + df['seller_platform'].fillna('') + ' ' +
+    'Red flags: ' + df['red_flags'].fillna('none')
     )
     
     # Convert labels to binary (0=legitimate, 1=scam)
     label_map = {'legitimate': 0, 'scam': 1}
-    df['label_encoded'] = df['label'].map(label_map)
+    df['label_encoded'] = df['is_scam'].astype(int)
     
     # Split data: 70% train, 10% val, 20% test
     train_texts, temp_texts, train_labels, temp_labels = train_test_split(

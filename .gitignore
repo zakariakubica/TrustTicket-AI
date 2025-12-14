@@ -1,3 +1,11 @@
+
+models/bert/*.bin
+models/bert/pytorch_model.bin
+models/bert/model.safetensors
+models/checkpoints/*.pt
+*.safetensors
+*.bin
+
 # Virtual Environment
 venv/
 env/
